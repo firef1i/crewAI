@@ -143,6 +143,8 @@ class Crew(BaseModel):
 
         if self.process == Process.sequential:
             return self._sequential_loop()
+        if self.process == Process.hierarchical:
+            return self._hierarchical_loop()
 
     def _sequential_loop(self) -> str:
         """Executes tasks sequentially and returns the final output."""
@@ -156,6 +158,33 @@ class Crew(BaseModel):
 
         if self.max_rpm:
             self._rpm_controller.stop_rpm_counter()
+        return task_output
+
+    def _hierarchical_process(self, items, ctx: str | None = None) -> str:
+        task_output = None
+
+        for item in items:
+            if isinstance(item, tuple):
+                self._hierarchical_process(item, ctx)
+            elif isinstance(item, list):
+                self._hierarchical_process(item, ctx)
+            else:  # item is task
+                self._prepare_and_execute_task(item)
+                task_output = item.execute(ctx)
+                self._logger.log(
+                    "debug", f"[{item.agent.role}] Task output: {task_output}\n\n"
+                )
+
+        if self.max_rpm:
+            self._rpm_controller.stop_rpm_counter()
+        return task_output
+
+    def _hierarchical_loop(self) -> str:
+        """Executes tasks sequentially and returns the final output.
+        ~~[t1, ([t2a, t2b], (t3a, t3b)), t4] : [...] => sequential, (...) => concurrent~~
+        [t1, [t2a, t2b], t3] => t1r, t2ar, t2br, t3r
+        """
+        task_output = self._hierarchical_process(self.tasks)
         return task_output
 
     def _prepare_and_execute_task(self, task: Task) -> None:
