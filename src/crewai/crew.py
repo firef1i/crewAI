@@ -182,7 +182,7 @@ class Crew(BaseModel):
     def _hierarchical_loop(self) -> str:
         """Executes tasks sequentially and returns the final output.
         ~~[t1, ([t2a, t2b], (t3a, t3b)), t4] : [...] => sequential, (...) => concurrent~~
-        [t1, [t2a, t2b], t3] => t1r, t2ar, t2br, t3r
+        [t1, (t2a, t2b), t3] => t1r, +t2ar, +t2br, ++t3r
         """
         task_output = self._hierarchical_process(self.tasks)
         return task_output
